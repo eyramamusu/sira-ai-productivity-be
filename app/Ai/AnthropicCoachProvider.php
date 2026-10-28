@@ -38,7 +38,7 @@ class AnthropicCoachProvider implements CoachProvider
 
     public function structured(string $kind, string $system, string $prompt, array $schema, array $context = []): array
     {
-        $message = $this->send($system, [['role' => 'user', 'content' => $prompt]], 8000, $schema);
+        $message = $this->send($system, [['role' => 'user', 'content' => $prompt]], 4200, $schema);
         $data = json_decode($this->text($message), true);
         if (! is_array($data)) {
             throw CoachUnavailableException::unavailable('The AI coach returned an unexpected answer. Please try again.');
