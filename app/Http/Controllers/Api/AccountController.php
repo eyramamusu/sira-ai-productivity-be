@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
@@ -98,6 +99,8 @@ class AccountController extends Controller
 
         DB::transaction(function () use ($user) {
             $user->tokens()->delete();
+            // Reset tokens are keyed by email, so the user_id cascade doesn't reach them.
+            Password::broker()->deleteToken($user);
             $user->delete();
         });
 

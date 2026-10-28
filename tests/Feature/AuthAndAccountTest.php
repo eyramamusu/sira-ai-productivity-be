@@ -95,11 +95,13 @@ class AuthAndAccountTest extends TestCase
     {
         $user = $this->signIn(User::factory()->create(['password' => 'secret123']));
         $user->tasks()->create(['title' => 'Gone soon']);
+        Password::createToken($user);
 
         $this->deleteJson('/api/v1/me', ['password' => 'wrong'])->assertUnprocessable();
         $this->deleteJson('/api/v1/me', ['password' => 'secret123'])->assertOk();
 
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
         $this->assertSame(0, Task::withTrashed()->count());
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);
     }
 }
