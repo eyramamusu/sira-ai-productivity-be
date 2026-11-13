@@ -32,6 +32,14 @@ class SettingsController extends Controller
             'focus_minutes' => ['sometimes', 'integer', 'between:1,180'],
             'break_minutes' => ['sometimes', 'integer', 'between:1,60'],
             'daily_task_goal' => ['sometimes', 'integer', 'between:1,50'],
+            'reminder_lead_minutes' => ['sometimes', 'integer', Rule::in([0, 5, 10, 15, 30, 60])],
+            'daily_summary' => ['sometimes', 'boolean'],
+            'daily_summary_time' => ['sometimes', 'date_format:H:i'],
+            'streak_reminders' => ['sometimes', 'boolean'],
+            'streak_reminder_time' => ['sometimes', 'date_format:H:i'],
+            'goal_reminders' => ['sometimes', 'boolean'],
+            'push_enabled' => ['sometimes', 'boolean'],
+            'weekly_review' => ['sometimes', 'boolean'],
         ]);
 
         if (isset($data['color_theme']) && $data['color_theme'] !== config('sira.free_color_theme') && ! $user->isPremium()) {

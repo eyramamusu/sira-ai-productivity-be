@@ -4,10 +4,12 @@ use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CoachController;
+use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\FocusSessionController;
 use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\HabitController;
 use App\Http\Controllers\Api\InsightsController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SubtaskController;
@@ -38,9 +40,18 @@ Route::prefix('v1')->group(function () {
 
         Route::get('me', [AccountController::class, 'show']);
         Route::patch('me', [AccountController::class, 'update']);
+        Route::post('me/avatar', [AccountController::class, 'updateAvatar']);
+        Route::delete('me/avatar', [AccountController::class, 'destroyAvatar']);
         Route::put('me/password', [AccountController::class, 'updatePassword']);
         Route::get('me/export', [AccountController::class, 'export']);
         Route::delete('me', [AccountController::class, 'destroy']);
+
+        Route::post('devices', [DeviceController::class, 'store']);
+        Route::delete('devices', [DeviceController::class, 'destroy']);
+
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::post('notifications/read', [NotificationController::class, 'markRead']);
+        Route::delete('notifications/{id}', [NotificationController::class, 'destroy'])->whereUuid('id');
 
         Route::get('settings', [SettingsController::class, 'show']);
         Route::patch('settings', [SettingsController::class, 'update']);

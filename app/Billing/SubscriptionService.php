@@ -4,6 +4,7 @@ namespace App\Billing;
 
 use App\Models\Subscription;
 use App\Models\User;
+use App\Notifications\SubscriptionUpdated;
 use Illuminate\Database\UniqueConstraintViolationException;
 
 class SubscriptionService
@@ -27,6 +28,7 @@ class SubscriptionService
         }
 
         $subscription = $existing ?? new Subscription(['store_transaction_hash' => $hash]);
+        $before = $this->state($subscription);
         $subscription->user()->associate($user);
         $this->fill($subscription, $purchase);
 
@@ -36,6 +38,8 @@ class SubscriptionService
             throw BillingException::inUse(); // lost a race with another account
         }
 
+        $this->announce($subscription, $before);
+
         return $subscription;
     }
 
@@ -43,10 +47,20 @@ class SubscriptionService
     public function refresh(Subscription $subscription): Subscription
     {
         $purchase = $this->verifier->verify($subscription->user, $subscription->platform, $subscription->product_id, $subscription->store_transaction_id);
+        $before = $this->state($subscription);
         $this->fill($subscription, $purchase);
         $subscription->save();
+        $this->announce($subscription, $before);
 
         return $subscription;
+    }
+
+    /** Marks a lapsed subscription expired (the hourly safety net when the store couldn't be reached). */
+    public function expire(Subscription $subscription): void
+    {
+        $before = $this->state($subscription);
+        $subscription->update(['status' => 'expired']);
+        $this->announce($subscription, $before);
     }
 
     public function findByToken(string $platform, string $token): ?Subscription
@@ -77,6 +91,41 @@ class SubscriptionService
     public function planFor(string $productId): ?string
     {
         return array_search($productId, config('sira.products'), true) ?: null;
+    }
+
+    /** @return array{entitled: bool, status: ?string, auto_renewing: bool} */
+    private function state(Subscription $subscription): array
+    {
+        return [
+            'entitled' => $subscription->exists && $this->isEntitled($subscription),
+            'status' => $subscription->exists ? $subscription->status : null,
+            'auto_renewing' => (bool) $subscription->auto_renewing,
+        ];
+    }
+
+    private function isEntitled(Subscription $subscription): bool
+    {
+        return in_array($subscription->status, Subscription::ENTITLED_STATUSES, true) && $subscription->expires_at?->isFuture();
+    }
+
+    /** Tells the user when premium starts, has a payment problem, stops renewing, or ends. */
+    private function announce(Subscription $subscription, array $before): void
+    {
+        $user = $subscription->user;
+        $entitled = $this->isEntitled($subscription);
+        $expiresOn = $subscription->expires_at?->copy()->setTimezone($user->timezone)->toFormattedDateString();
+
+        $event = match (true) {
+            $entitled && ! $before['entitled'] => SubscriptionUpdated::ACTIVATED,
+            ! $entitled && $before['entitled'] => SubscriptionUpdated::EXPIRED,
+            $subscription->status === 'grace_period' && $before['status'] !== 'grace_period' => SubscriptionUpdated::BILLING_ISSUE,
+            $entitled && $before['auto_renewing'] && ! $subscription->auto_renewing => SubscriptionUpdated::RENEWAL_OFF,
+            default => null,
+        };
+
+        if ($event) {
+            $user->notify(new SubscriptionUpdated($event, $expiresOn));
+        }
     }
 
     private function fill(Subscription $subscription, VerifiedPurchase $purchase): void

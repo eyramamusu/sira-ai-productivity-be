@@ -5,8 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Notifications\SecurityAlert;
 use App\Services\AccountSetup;
-use Illuminate\Auth\Events\PasswordReset;
+use App\Services\PasswordResetter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,6 +57,8 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['email' => 'These credentials do not match our records.']);
         }
 
+        $user->notify(new SecurityAlert(SecurityAlert::NEW_SIGN_IN, $data['device_name'] ?? null));
+
         return response()->json($this->tokenResponse($request, $user, $data['device_name'] ?? null));
     }
 
@@ -68,7 +71,7 @@ class AuthController extends Controller
         return response()->json(['message' => 'If an account exists for that email, we have sent a password reset link.']);
     }
 
-    public function resetPassword(Request $request): JsonResponse
+    public function resetPassword(Request $request, PasswordResetter $resetter): JsonResponse
     {
         $data = $request->validate([
             'token' => ['required', 'string'],
@@ -76,17 +79,9 @@ class AuthController extends Controller
             'password' => ['required', 'confirmed', PasswordRule::min(8)],
         ]);
 
-        $status = Password::reset(
-            ['email' => strtolower(trim($data['email'])), 'password' => $data['password'], 'token' => $data['token']],
-            function (User $user, string $password) {
-                $user->forceFill(['password' => $password])->save();
-                $user->tokens()->delete();
-                event(new PasswordReset($user));
-            },
-        );
-
-        if ($status !== Password::PasswordReset) {
-            throw ValidationException::withMessages(['email' => __($status)]);
+        $result = $resetter->reset($data['email'], $data['token'], $data['password']);
+        if ($result !== true) {
+            throw ValidationException::withMessages(['email' => $result]);
         }
 
         return response()->json(['message' => 'Your password has been reset. Please sign in.']);

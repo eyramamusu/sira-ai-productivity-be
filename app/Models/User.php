@@ -18,7 +18,7 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'password', 'timezone', 'avatar_url', 'onboarding_completed'];
+    protected $fillable = ['name', 'email', 'password', 'timezone', 'avatar_url', 'avatar_path', 'onboarding_completed'];
 
     protected $hidden = ['password', 'remember_token'];
 
@@ -37,6 +37,11 @@ class User extends Authenticatable
     protected function email(): Attribute
     {
         return Attribute::set(fn (string $value) => strtolower(trim($value)));
+    }
+
+    public function deviceTokens(): HasMany
+    {
+        return $this->hasMany(DeviceToken::class);
     }
 
     public function settings(): HasOne

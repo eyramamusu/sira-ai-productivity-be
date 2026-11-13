@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\XpEvent;
+use App\Notifications\AchievementUnlocked;
 use App\Support\Achievements;
 use App\Support\Levels;
 use Illuminate\Support\Carbon;
@@ -80,6 +81,7 @@ class GamificationService
                         $this->addXp($user, $def['xp']);
                     });
                     $unlocked[] = $key;
+                    $user->notify(new AchievementUnlocked($key));
                 }
             }
         } while ($new !== []);

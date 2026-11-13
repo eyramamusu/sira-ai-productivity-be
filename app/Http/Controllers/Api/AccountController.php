@@ -9,11 +9,13 @@ use App\Http\Resources\GoalResource;
 use App\Http\Resources\HabitResource;
 use App\Http\Resources\TaskResource;
 use App\Http\Resources\UserResource;
+use App\Notifications\SecurityAlert;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
@@ -36,11 +38,40 @@ class AccountController extends Controller
             'name' => ['sometimes', 'required', 'string', 'max:100'],
             'email' => ['sometimes', 'required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'timezone' => ['sometimes', 'required', 'timezone:all'],
-            'avatar_url' => ['sometimes', 'nullable', 'url', 'max:2048'],
             'onboarding_completed' => ['sometimes', 'boolean'],
         ]);
 
         $user->update($data);
+
+        return new UserResource($user);
+    }
+
+    /** Replaces the profile photo. The app downsizes it to a JPEG before upload. */
+    public function updateAvatar(Request $request): UserResource
+    {
+        $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=4096,max_height=4096'],
+        ]);
+
+        $user = $request->user();
+        $previous = $user->avatar_path;
+        $path = $request->file('avatar')->store('avatars', 'public');
+        $user->update(['avatar_path' => $path, 'avatar_url' => Storage::disk('public')->url($path)]);
+
+        if ($previous) {
+            Storage::disk('public')->delete($previous);
+        }
+
+        return new UserResource($user);
+    }
+
+    public function destroyAvatar(Request $request): UserResource
+    {
+        $user = $request->user();
+        if ($user->avatar_path) {
+            Storage::disk('public')->delete($user->avatar_path);
+        }
+        $user->update(['avatar_path' => null, 'avatar_url' => null]);
 
         return new UserResource($user);
     }
@@ -61,6 +92,7 @@ class AccountController extends Controller
         // Keep this device signed in, sign out every other one.
         $current = $user->currentAccessToken();
         $user->tokens()->when($current instanceof PersonalAccessToken, fn ($q) => $q->whereKeyNot($current->getKey()))->delete();
+        $user->notify(new SecurityAlert(SecurityAlert::PASSWORD_CHANGED));
 
         return response()->json(['message' => 'Password updated. Other devices have been signed out.']);
     }
@@ -83,6 +115,8 @@ class AccountController extends Controller
             'xp_history' => $user->xpEvents()->orderBy('id')->get(['amount', 'reason', 'created_at']),
             'subscriptions' => $user->subscriptions()->get()->map->toApi(),
             'coach_messages' => $user->coachMessages()->orderBy('id')->get()->map->toApi(),
+            'notifications' => $user->notifications()->latest()->get()->map(fn ($n) => NotificationController::toApi($n)),
+            'devices' => $user->deviceTokens()->get(['platform', 'last_seen_at', 'created_at']),
         ], 200, [], JSON_UNESCAPED_UNICODE);
     }
 
@@ -103,6 +137,10 @@ class AccountController extends Controller
             Password::broker()->deleteToken($user);
             $user->delete();
         });
+
+        if ($user->avatar_path) {
+            Storage::disk('public')->delete($user->avatar_path);
+        }
 
         return response()->json([
             'message' => 'Your account and all of its data have been deleted.',

@@ -5,9 +5,12 @@ namespace Tests\Feature;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AuthAndAccountTest extends TestCase
@@ -70,6 +73,34 @@ class AuthAndAccountTest extends TestCase
         $this->postJson('/api/v1/auth/login', ['email' => 'efua@example.com', 'password' => 'newpass123'])->assertOk();
     }
 
+    public function test_reset_email_links_to_hosted_page_that_resets_the_password(): void
+    {
+        Notification::fake();
+        config(['sira.password_reset_url' => 'https://api.sira.test/reset-password']);
+        $user = User::factory()->create(['email' => 'kofi@example.com']);
+        $user->createToken('phone');
+
+        $this->postJson('/api/v1/auth/forgot-password', ['email' => 'kofi@example.com'])->assertOk();
+        Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $n) use ($user) {
+            return str_starts_with($n->toMail($user)->actionUrl, 'https://api.sira.test/reset-password?token=');
+        });
+
+        $token = Password::createToken($user);
+        $this->get('/reset-password?'.http_build_query(['token' => $token, 'email' => $user->email]))
+            ->assertOk()->assertSee('Choose a new password')->assertSee($token);
+
+        $this->withoutMiddleware(ValidateCsrfToken::class)
+            ->post('/reset-password', ['token' => 'wrong', 'email' => $user->email, 'password' => 'newpass123', 'password_confirmation' => 'newpass123'])
+            ->assertRedirect()->assertSessionHasErrors('email');
+
+        $this->withoutMiddleware(ValidateCsrfToken::class)
+            ->post('/reset-password', ['token' => $token, 'email' => $user->email, 'password' => 'newpass123', 'password_confirmation' => 'newpass123'])
+            ->assertOk()->assertSee('Password updated');
+
+        $this->assertSame(0, $user->tokens()->count());
+        $this->postJson('/api/v1/auth/login', ['email' => 'kofi@example.com', 'password' => 'newpass123'])->assertOk();
+    }
+
     public function test_profile_update_and_password_change(): void
     {
         $user = $this->signIn(User::factory()->create(['password' => 'secret123']));
@@ -91,6 +122,38 @@ class AuthAndAccountTest extends TestCase
             ->assertJsonPath('tasks.0.title', 'Exported task');
     }
 
+    public function test_avatar_upload_replace_and_remove(): void
+    {
+        Storage::fake('public');
+        $user = $this->signIn();
+
+        $this->postJson('/api/v1/me/avatar', ['avatar' => UploadedFile::fake()->create('notes.pdf', 10, 'application/pdf')])
+            ->assertUnprocessable()->assertJsonValidationErrors('avatar');
+
+        $this->postJson('/api/v1/me/avatar', ['avatar' => $this->png('me.png')])
+            ->assertOk()->assertJsonPath('data.avatar_url', fn ($url) => str_contains($url, '/storage/avatars/'));
+        $first = $user->fresh()->avatar_path;
+        Storage::disk('public')->assertExists($first);
+
+        $this->postJson('/api/v1/me/avatar', ['avatar' => $this->png('me2.png')])->assertOk();
+        Storage::disk('public')->assertMissing($first);
+        $second = $user->fresh()->avatar_path;
+
+        $this->deleteJson('/api/v1/me/avatar')->assertOk()->assertJsonPath('data.avatar_url', null);
+        Storage::disk('public')->assertMissing($second);
+    }
+
+    public function test_account_deletion_removes_avatar_file(): void
+    {
+        Storage::fake('public');
+        $user = $this->signIn(User::factory()->create(['password' => 'secret123']));
+        $this->postJson('/api/v1/me/avatar', ['avatar' => $this->png('me.png')])->assertOk();
+        $path = $user->fresh()->avatar_path;
+
+        $this->deleteJson('/api/v1/me', ['password' => 'secret123'])->assertOk();
+        Storage::disk('public')->assertMissing($path);
+    }
+
     public function test_account_deletion_removes_all_data(): void
     {
         $user = $this->signIn(User::factory()->create(['password' => 'secret123']));
@@ -103,5 +166,11 @@ class AuthAndAccountTest extends TestCase
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
         $this->assertSame(0, Task::withTrashed()->count());
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);
+    }
+
+    /** A real 1x1 PNG, so the image rules run without the GD extension. */
+    private function png(string $name): UploadedFile
+    {
+        return UploadedFile::fake()->createWithContent($name, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='));
     }
 }

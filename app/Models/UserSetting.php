@@ -10,6 +10,8 @@ class UserSetting extends Model
     protected $fillable = [
         'theme', 'color_theme', 'notifications_enabled', 'habit_reminders', 'task_reminders', 'default_priority',
         'show_completed_tasks', 'default_due_time', 'week_starts_on', 'focus_minutes', 'break_minutes', 'daily_task_goal',
+        'reminder_lead_minutes', 'daily_summary', 'daily_summary_time', 'streak_reminders', 'streak_reminder_time',
+        'goal_reminders', 'push_enabled', 'weekly_review',
     ];
 
     // Mirrors the column defaults so a freshly created row is complete without a reload.
@@ -26,6 +28,14 @@ class UserSetting extends Model
         'focus_minutes' => 25,
         'break_minutes' => 5,
         'daily_task_goal' => 5,
+        'reminder_lead_minutes' => 10,
+        'daily_summary' => true,
+        'daily_summary_time' => '08:00',
+        'streak_reminders' => true,
+        'streak_reminder_time' => '20:00',
+        'goal_reminders' => true,
+        'push_enabled' => true,
+        'weekly_review' => true,
     ];
 
     protected function casts(): array
@@ -39,6 +49,12 @@ class UserSetting extends Model
             'focus_minutes' => 'integer',
             'break_minutes' => 'integer',
             'daily_task_goal' => 'integer',
+            'reminder_lead_minutes' => 'integer',
+            'daily_summary' => 'boolean',
+            'streak_reminders' => 'boolean',
+            'goal_reminders' => 'boolean',
+            'push_enabled' => 'boolean',
+            'weekly_review' => 'boolean',
         ];
     }
 

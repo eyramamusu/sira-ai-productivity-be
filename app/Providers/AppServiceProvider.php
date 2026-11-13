@@ -10,6 +10,8 @@ use App\Ai\FakeCoachProvider;
 use App\Billing\FakeVerifier;
 use App\Billing\PurchaseVerifier;
 use App\Billing\StoreVerifier;
+use App\Push\PushGateway;
+use App\Push\PushSender;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -25,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
             'fake' => $app->make(FakeVerifier::class),
             default => $app->make(StoreVerifier::class), // `revenuecat` and `store`: routed by the purchase's platform
         });
+
+        $this->app->bind(PushSender::class, PushGateway::class);
 
         $this->app->bind(CoachProvider::class, function ($app) {
             if (config('sira.ai.driver') === 'fake') {

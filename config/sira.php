@@ -2,7 +2,9 @@
 
 return [
 
-    'password_reset_url' => env('SIRA_PASSWORD_RESET_URL', 'http://localhost:4200/reset-password'),
+    // Where reset emails link to. Defaults to the reset page this API hosts, which works in any
+    // browser. Set it to the app's /reset-password screen only for a web build of the app.
+    'password_reset_url' => env('SIRA_PASSWORD_RESET_URL') ?: rtrim((string) env('APP_URL', 'http://localhost'), '/').'/reset-password',
 
     'free' => [
         'max_active_habits' => (int) env('SIRA_FREE_MAX_HABITS', 3),
@@ -57,6 +59,28 @@ return [
             'private_key_path' => env('APPLE_IAP_PRIVATE_KEY_PATH') ?: null,
             'environment' => env('APPLE_IAP_ENVIRONMENT', 'production'),
         ],
+    ],
+
+    // Server-sent notifications (security alerts, subscription changes, weekly review).
+    // Scheduled reminders are local notifications on the phone and need none of this.
+    'push' => [
+        // native: FCM for Android, APNs for iOS (each only once its credentials are set) | log
+        'driver' => env('SIRA_PUSH_DRIVER', 'native'),
+
+        'fcm' => [
+            'service_account_json' => env('FCM_SERVICE_ACCOUNT_JSON') ?: null,
+        ],
+
+        'apns' => [
+            'team_id' => env('APNS_TEAM_ID') ?: null,
+            'key_id' => env('APNS_KEY_ID') ?: null,
+            'private_key_path' => env('APNS_PRIVATE_KEY_PATH') ?: null,
+            'bundle_id' => env('APPLE_BUNDLE_ID', 'com.sira.productivity'),
+            'environment' => env('APNS_ENVIRONMENT', 'production'),
+        ],
+
+        'weekly_review_hour' => 9,
+        'keep_read_days' => 90,
     ],
 
     'ai' => [
