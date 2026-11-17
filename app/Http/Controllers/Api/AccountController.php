@@ -10,12 +10,12 @@ use App\Http\Resources\HabitResource;
 use App\Http\Resources\TaskResource;
 use App\Http\Resources\UserResource;
 use App\Notifications\SecurityAlert;
+use App\Support\AvatarStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
@@ -47,7 +47,7 @@ class AccountController extends Controller
     }
 
     /** Replaces the profile photo. The app downsizes it to a JPEG before upload. */
-    public function updateAvatar(Request $request): UserResource
+    public function updateAvatar(Request $request, AvatarStore $avatars): UserResource
     {
         $request->validate([
             'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=4096,max_height=4096'],
@@ -55,22 +55,17 @@ class AccountController extends Controller
 
         $user = $request->user();
         $previous = $user->avatar_path;
-        $path = $request->file('avatar')->store('avatars', 'public');
-        $user->update(['avatar_path' => $path, 'avatar_url' => Storage::disk('public')->url($path)]);
-
-        if ($previous) {
-            Storage::disk('public')->delete($previous);
-        }
+        $avatar = $avatars->store($user, $request->file('avatar'));
+        $user->update(['avatar_path' => $avatar['path'], 'avatar_url' => $avatar['url']]);
+        $avatars->delete($previous);
 
         return new UserResource($user);
     }
 
-    public function destroyAvatar(Request $request): UserResource
+    public function destroyAvatar(Request $request, AvatarStore $avatars): UserResource
     {
         $user = $request->user();
-        if ($user->avatar_path) {
-            Storage::disk('public')->delete($user->avatar_path);
-        }
+        $avatars->delete($user->avatar_path);
         $user->update(['avatar_path' => null, 'avatar_url' => null]);
 
         return new UserResource($user);
@@ -121,7 +116,7 @@ class AccountController extends Controller
     }
 
     /** Permanently deletes the account; the foreign keys cascade to every row the user owns. */
-    public function destroy(Request $request): JsonResponse
+    public function destroy(Request $request, AvatarStore $avatars): JsonResponse
     {
         $user = $request->user();
         $data = $request->validate(['password' => ['required', 'string']]);
@@ -138,9 +133,8 @@ class AccountController extends Controller
             $user->delete();
         });
 
-        if ($user->avatar_path) {
-            Storage::disk('public')->delete($user->avatar_path);
-        }
+        // Database avatars go with the user row (cascade); this removes a disk file.
+        $avatars->delete($user->avatar_path);
 
         return response()->json([
             'message' => 'Your account and all of its data have been deleted.',

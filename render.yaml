@@ -1,0 +1,93 @@
+# Render Blueprint: free web service running the Dockerfile. In Render choose
+# New > Blueprint, pick this repository, then fill in the values marked `sync: false`.
+# See docs/DEPLOYMENT.md ("Free hosting on Render").
+services:
+  - type: web
+    name: sira-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    healthCheckPath: /up
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: APP_NAME
+        value: Sira AI
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      # Generate locally with `php artisan key:generate --show` (starts with base64:). Never reuse a dev key.
+      - key: APP_KEY
+        sync: false
+      # The service URL Render shows, e.g. https://sira-api.onrender.com (used in reset and avatar links).
+      - key: APP_URL
+        sync: false
+      - key: TRUSTED_PROXIES
+        value: "*"
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: warning
+
+      # TiDB Cloud Starter (MySQL-compatible, free). TLS is required; the system CA bundle
+      # already contains TiDB's root certificate (ISRG Root X1), so no certificate file is needed.
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "4000"
+      - key: DB_DATABASE
+        value: sira_ai
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: MYSQL_ATTR_SSL_CA
+        value: /etc/ssl/certs/ca-certificates.crt
+
+      # No background workers or disk on the free tier.
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: CACHE_STORE
+        value: database
+      - key: SESSION_DRIVER
+        value: database
+      - key: SIRA_AVATAR_STORAGE
+        value: database
+      # Sent as the X-Cron-Secret header by the outside cron service that calls /api/v1/cron/run.
+      - key: SIRA_CRON_SECRET
+        generateValue: true
+
+      # Native app origins plus the web app on Cloudflare Pages.
+      - key: CORS_ALLOWED_ORIGINS
+        value: capacitor://localhost,https://localhost,https://sira-ai-0kb.pages.dev
+
+      # Password reset emails (any SMTP provider, e.g. Brevo's free plan).
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM_ADDRESS
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: Sira AI
+
+      # Features that need paid accounts stay off: the coach answers "not configured" without a
+      # key, purchases are app-store only, and push is logged instead of sent.
+      - key: SIRA_AI_DRIVER
+        value: anthropic
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SIRA_BILLING_DRIVER
+        value: revenuecat
+      - key: SIRA_PUSH_DRIVER
+        value: log

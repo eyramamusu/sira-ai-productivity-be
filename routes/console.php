@@ -51,4 +51,6 @@ Schedule::command('sira:notifications:weekly-review')->hourly()->withoutOverlapp
 Schedule::command('sira:notifications:prune')->daily();
 // Notifications are queued. With only cron available, this drains the queue every minute;
 // with a process manager, run `php artisan queue:work` instead and remove this line.
-Schedule::command('queue:work --stop-when-empty --max-time=55 --tries=3')->everyMinute()->withoutOverlapping();
+// With QUEUE_CONNECTION=sync (hosts without workers, e.g. Render's free tier) there is nothing to drain.
+Schedule::command('queue:work --stop-when-empty --max-time=55 --tries=3')->everyMinute()->withoutOverlapping()
+    ->when(fn () => config('queue.default') !== 'sync');

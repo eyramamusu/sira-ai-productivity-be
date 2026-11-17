@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AvatarController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CoachController;
+use App\Http\Controllers\Api\CronController;
 use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\FocusSessionController;
 use App\Http\Controllers\Api\GoalController;
@@ -19,6 +21,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::get('health', fn () => ['status' => 'ok', 'time' => now()->toIso8601String()]);
+
+    // Profile photos stored in the database (SIRA_AVATAR_STORAGE=database).
+    Route::get('avatars/{token}', [AvatarController::class, 'show'])->where('token', '[A-Za-z0-9]{40}');
+
+    // Scheduler trigger for hosts without cron (SIRA_CRON_SECRET).
+    Route::match(['get', 'post'], 'cron/run', [CronController::class, 'run']);
 
     Route::middleware('throttle:auth')->prefix('auth')->group(function () {
         Route::post('register', [AuthController::class, 'register']);
