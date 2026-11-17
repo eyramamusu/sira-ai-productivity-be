@@ -168,6 +168,45 @@ class AuthAndAccountTest extends TestCase
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);
     }
 
+    public function test_avatars_can_be_stored_in_the_database(): void
+    {
+        config(['sira.avatars.storage' => 'database']);
+        Storage::fake('public');
+        $this->signIn(User::factory()->create(['password' => 'secret123']));
+
+        $url = $this->postJson('/api/v1/me/avatar', ['avatar' => $this->png('me.png')])->assertOk()->json('data.avatar_url');
+        $this->assertStringContainsString('/api/v1/avatars/', $url);
+        $this->assertSame([], Storage::disk('public')->allFiles());
+
+        $image = $this->get(parse_url($url, PHP_URL_PATH))->assertOk()->assertHeader('Content-Type', 'image/png');
+        $this->assertSame($this->png('x.png')->getContent(), $image->getContent());
+
+        // Replacing deletes the old row, so its URL stops working.
+        $this->postJson('/api/v1/me/avatar', ['avatar' => $this->png('me2.png')])->assertOk();
+        $this->get(parse_url($url, PHP_URL_PATH))->assertNotFound();
+        $this->assertDatabaseCount('user_avatars', 1);
+
+        $this->deleteJson('/api/v1/me/avatar')->assertOk()->assertJsonPath('data.avatar_url', null);
+        $this->assertDatabaseCount('user_avatars', 0);
+
+        $this->postJson('/api/v1/me/avatar', ['avatar' => $this->png('me3.png')])->assertOk();
+        $this->deleteJson('/api/v1/me', ['password' => 'secret123'])->assertOk();
+        $this->assertDatabaseCount('user_avatars', 0);
+    }
+
+    public function test_disk_avatar_is_removed_after_switching_to_the_database(): void
+    {
+        Storage::fake('public');
+        $user = $this->signIn();
+        $this->postJson('/api/v1/me/avatar', ['avatar' => $this->png('me.png')])->assertOk();
+        $diskPath = $user->fresh()->avatar_path;
+
+        config(['sira.avatars.storage' => 'database']);
+        $this->postJson('/api/v1/me/avatar', ['avatar' => $this->png('me2.png')])->assertOk();
+        Storage::disk('public')->assertMissing($diskPath);
+        $this->assertDatabaseCount('user_avatars', 1);
+    }
+
     /** A real 1x1 PNG, so the image rules run without the GD extension. */
     private function png(string $name): UploadedFile
     {

@@ -14,6 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Behind a TLS-terminating proxy (Render, load balancers) so generated URLs use https and
+        // rate limits see the real client IP. TRUSTED_PROXIES is a comma-separated list, or '*'
+        // for the single hop in front of the app. Set it as a real environment variable.
+        if ($proxies = env('TRUSTED_PROXIES')) {
+            $middleware->trustProxies(at: $proxies === '*' ? '*' : explode(',', $proxies));
+        }
         $middleware->throttleApi();
         $middleware->alias(['premium' => EnsurePremium::class]);
     })

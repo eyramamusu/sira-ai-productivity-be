@@ -1,5 +1,35 @@
 # Deployment & configuration
 
+## Free hosting on Render
+
+The repo includes a `Dockerfile` and a Render Blueprint (`render.yaml`) for a zero-cost setup: Render's free web service, a free MySQL-compatible database, and a free outside cron.
+
+**1. Database.** Create a free cluster on [TiDB Cloud Serverless](https://tidbcloud.com) (5 GB, doesn't sleep) or [Aiven for MySQL](https://aiven.io) (free plan). Create a database named `sira` and note host, port (TiDB: 4000), user and password. Both require TLS; the Blueprint sets `MYSQL_ATTR_SSL_CA` to the image's CA bundle.
+
+**2. Web service.** In Render: *New → Blueprint*, connect this repository, and fill in the `sync: false` values:
+
+| Variable | Value |
+| --- | --- |
+| `APP_KEY` | Output of `php artisan key:generate --show`, run locally. Never reuse a development key. |
+| `APP_URL` | The URL Render gives the service, e.g. `https://sira-api.onrender.com`. The app's `environment.prod.ts` must use the same host. |
+| `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | From step 1 |
+| `CORS_ALLOWED_ORIGINS` | `capacitor://localhost,https://localhost,https://<project>.pages.dev` |
+| `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | SMTP login from a free mail provider (e.g. Brevo: `smtp-relay.brevo.com`, with a verified sender address). Without it, password reset emails aren't delivered. |
+| `ANTHROPIC_API_KEY` | Optional. Leave empty and the coach answers *not configured*. |
+
+Every start runs migrations and rebuilds the config cache, so changed variables apply after a redeploy or restart. Check `https://<service>.onrender.com/up` and `/api/v1/health`.
+
+**3. Scheduler.** The free tier has no cron. Create a free job at [cron-job.org](https://cron-job.org) that calls `https://<service>.onrender.com/api/v1/cron/run` every 5 minutes with the header `X-Cron-Secret: <SIRA_CRON_SECRET>` (Render generated it; copy it from the service's *Environment* tab). This runs the weekly review, subscription checks and pruning, and keeps the free instance from sleeping (it sleeps after 15 idle minutes; the first request after that takes up to a minute). One service running all month fits in Render's 750 free hours.
+
+How the free setup differs from a normal server:
+
+- `QUEUE_CONNECTION=sync`: notifications are sent during the request instead of by a worker.
+- `SIRA_AVATAR_STORAGE=database`: profile photos are stored in the `user_avatars` table and served from `/api/v1/avatars/{token}`, because Render's disk is wiped on every deploy and restart.
+- `TRUSTED_PROXIES=*`: Render terminates HTTPS in front of the container.
+- Purchases, server push and the AI coach stay off until their accounts and keys are added (see below).
+
+## Your own server
+
 Requirements: PHP 8.3+ with `pdo_mysql`, `openssl`, `mbstring`, `curl`; MySQL 8 or MariaDB 10.4+; a web server (Nginx/Apache) serving `public/` over **HTTPS**; cron; a mail provider.
 
 ```bash

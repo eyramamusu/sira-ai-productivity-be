@@ -6,6 +6,16 @@ return [
     // browser. Set it to the app's /reset-password screen only for a web build of the app.
     'password_reset_url' => env('SIRA_PASSWORD_RESET_URL') ?: rtrim((string) env('APP_URL', 'http://localhost'), '/').'/reset-password',
 
+    // Where profile photos are saved: `disk` (the public disk, served from /storage) or `database`
+    // (the user_avatars table, for hosts whose disk is wiped on restart, such as Render's free tier).
+    'avatars' => [
+        'storage' => env('SIRA_AVATAR_STORAGE', 'disk'),
+    ],
+
+    // Shared secret for GET/POST /api/v1/cron/run (header X-Cron-Secret), which runs the scheduler
+    // on hosts without cron. Leave empty to disable the endpoint.
+    'cron_secret' => env('SIRA_CRON_SECRET', ''),
+
     'free' => [
         'max_active_habits' => (int) env('SIRA_FREE_MAX_HABITS', 3),
         'max_active_goals' => (int) env('SIRA_FREE_MAX_GOALS', 3),
