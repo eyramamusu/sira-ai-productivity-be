@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\TaskResource;
 use App\Models\Task;
@@ -76,6 +77,7 @@ class TaskController extends Controller
         $task = $this->replayed(Task::class, $data['id'] ?? null, $user);
         $created = $task === null;
         if ($created) {
+            $this->ensureCanAddTask($user);
             $task = new Task;
             $data['priority'] ??= $user->settingsOrDefault()->default_priority;
         }
@@ -128,9 +130,40 @@ class TaskController extends Controller
         return $this->respond($task, []);
     }
 
+    private function ensureCanAddTask(User $user): void
+    {
+        $max = config('sira.free.max_tasks_per_day');
+        if ($user->isPremium()) {
+            return;
+        }
+        $addedToday = $user->tasks()->whereNull('recurrence_parent_id')
+            ->where('created_at', '>=', $user->now()->startOfDay()->utc())
+            ->count();
+        if ($addedToday >= $max) {
+            throw ApiException::planLimit("The free plan lets you add {$max} tasks a day. Upgrade to Premium for unlimited tasks.");
+        }
+    }
+
+    /** Free tasks hold a few subtasks. A list that is already longer (e.g. from a lapsed Premium) may shrink but not grow. */
+    private function ensureSubtasksAllowed(Task $task, array $subtasks, User $user): void
+    {
+        $max = config('sira.free.max_subtasks_per_task');
+        $count = count($subtasks);
+        if ($count <= $max || $user->isPremium()) {
+            return;
+        }
+        if ($count > ($task->exists ? $task->subtasks()->count() : 0)) {
+            throw ApiException::planLimit("The free plan includes {$max} subtasks per task. Upgrade to Premium for unlimited subtasks.");
+        }
+    }
+
     /** @return list<string> achievements unlocked by a `completed` change */
     private function save(Task $task, array $data, User $user): array
     {
+        if (isset($data['subtasks'])) {
+            $this->ensureSubtasksAllowed($task, $data['subtasks'], $user);
+        }
+
         if (array_key_exists('priority', $data) && $data['priority'] === null) {
             unset($data['priority']);
         }

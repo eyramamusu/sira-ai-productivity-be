@@ -22,7 +22,7 @@ Rate limits: auth endpoints allow 10 requests/min per email+IP, the API 120/min 
 | --- | --- | --- |
 | 401 | `{message}` | Missing or expired token |
 | 403 | `{message, code: "premium_required"}` | Premium-only feature |
-| 403 | `{message, code: "plan_limit_reached"}` | Free plan limit (habits/goals) |
+| 403 | `{message, code: "plan_limit_reached"}` | Free plan limit: 3 active habits, 3 active goals, 5 tasks added per day (repeat occurrences don't count), 2 subtasks per task, 25-minute focus sessions |
 | 403 | `{message}` | Resource belongs to another user |
 | 409 | `{message}` / `{code: "billing_purchase_in_use"}` | ID collision or purchase linked to another account |
 | 422 | `{message, errors: {field: [..]}}` | Validation |
@@ -40,7 +40,7 @@ Rate limits: auth endpoints allow 10 requests/min per email+IP, the API 120/min 
 | PUT | `/me/password` | `current_password, password, password_confirmation`; signs out other devices |
 | GET | `/me/export` | Full JSON export of the user's data |
 | DELETE | `/me` | `{password}`; permanently deletes the account and all data (cascades) |
-| GET/PATCH | `/settings` | Theme, colour theme, notifications, default priority/due time, week start, focus/break minutes. `color_theme` other than `sira` needs Premium (403 `premium_required`) |
+| GET/PATCH | `/settings` | Theme, colour theme, notifications, default priority/due time, week start, focus/break minutes. `color_theme` other than `sira` needs Premium (403 `premium_required`), and so does `focus_minutes` other than 25 |
 
 ## Notifications
 

@@ -99,8 +99,8 @@ class HabitsGoalsFocusTest extends TestCase
     {
         $this->signIn();
         $this->getJson('/api/v1/settings')->assertOk()->assertJsonPath('data.theme', 'system');
-        $this->patchJson('/api/v1/settings', ['theme' => 'dark', 'default_due_time' => '08:30', 'focus_minutes' => 50])
-            ->assertOk()->assertJsonPath('data.theme', 'dark')->assertJsonPath('data.focus_minutes', 50);
+        $this->patchJson('/api/v1/settings', ['theme' => 'dark', 'default_due_time' => '08:30', 'break_minutes' => 10])
+            ->assertOk()->assertJsonPath('data.theme', 'dark')->assertJsonPath('data.break_minutes', 10);
         $this->patchJson('/api/v1/settings', ['theme' => 'neon'])->assertUnprocessable();
     }
 

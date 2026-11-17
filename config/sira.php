@@ -20,6 +20,11 @@ return [
         'max_active_habits' => (int) env('SIRA_FREE_MAX_HABITS', 3),
         'max_active_goals' => (int) env('SIRA_FREE_MAX_GOALS', 3),
         'analytics_max_days' => 7,
+        // Tasks the user adds per day (in their time zone). Repeat occurrences the server creates don't count.
+        'max_tasks_per_day' => (int) env('SIRA_FREE_MAX_TASKS_PER_DAY', 5),
+        'max_subtasks_per_task' => (int) env('SIRA_FREE_MAX_SUBTASKS', 2),
+        // Free focus sessions are fixed at this length; Premium picks 60 minutes or a custom length.
+        'focus_minutes' => 25,
     ],
 
     'premium' => [
