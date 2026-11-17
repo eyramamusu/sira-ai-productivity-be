@@ -4,7 +4,11 @@
 
 The repo includes a `Dockerfile` and a Render Blueprint (`render.yaml`) for a zero-cost setup: Render's free web service, a free MySQL-compatible database, and a free outside cron.
 
-**1. Database.** Create a free cluster on [TiDB Cloud Serverless](https://tidbcloud.com) (5 GB, doesn't sleep) or [Aiven for MySQL](https://aiven.io) (free plan). Create a database named `sira` and note host, port (TiDB: 4000), user and password. Both require TLS; the Blueprint sets `MYSQL_ATTR_SSL_CA` to the image's CA bundle.
+All production values are listed in `.env.production.example`; on Render they are environment variables, never a committed file.
+
+**1. Database.** Create a free **TiDB Cloud Starter** cluster (MySQL-compatible, 5 GiB, doesn't sleep; AWS Frankfurt, next to the Render service) and, in its SQL editor, `CREATE DATABASE sira_ai;`. From *Connect → Connect With: .env*, note the host and the username (it includes the cluster prefix, e.g. `xxxxxxxx.root`); the port is 4000. TLS is required: on Render the system CA bundle already trusts TiDB's certificate, so no certificate file goes into the image.
+
+Optional, to check the connection from your computer before deploying: download the CA certificate from the same dialog to `storage/certs/isrgrootx1.pem` (git-ignored), copy `.env.production.example` to `.env.tidb` (git-ignored), fill in the database values, set `MYSQL_ATTR_SSL_CA` to the certificate's full path, and run `php artisan db:show --env=tidb`. It only reads. Keep `MYSQL_ATTR_SSL_CA` out of your normal `.env`: the local XAMPP server doesn't use TLS.
 
 **2. Web service.** In Render: *New → Blueprint*, connect this repository, and fill in the `sync: false` values:
 
@@ -12,12 +16,15 @@ The repo includes a `Dockerfile` and a Render Blueprint (`render.yaml`) for a ze
 | --- | --- |
 | `APP_KEY` | Output of `php artisan key:generate --show`, run locally. Never reuse a development key. |
 | `APP_URL` | The URL Render gives the service, e.g. `https://sira-api.onrender.com`. The app's `environment.prod.ts` must use the same host. |
-| `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | From step 1 |
-| `CORS_ALLOWED_ORIGINS` | `capacitor://localhost,https://localhost,https://<project>.pages.dev` |
+| `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD` | From step 1 (`DB_PORT=4000` and `DB_DATABASE=sira_ai` are preset) |
 | `MAIL_HOST`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | SMTP login from a free mail provider (e.g. Brevo: `smtp-relay.brevo.com`, with a verified sender address). Without it, password reset emails aren't delivered. |
 | `ANTHROPIC_API_KEY` | Optional. Leave empty and the coach answers *not configured*. |
 
-Every start runs migrations and rebuilds the config cache, so changed variables apply after a redeploy or restart. Check `https://<service>.onrender.com/up` and `/api/v1/health`.
+`CORS_ALLOWED_ORIGINS` is preset to the native apps plus `https://sira-ai-0kb.pages.dev`; change it in `render.yaml` if the web app moves.
+
+**Allow Render to reach TiDB.** TiDB only accepts connections from IP addresses on its allow list, and your computer's address isn't Render's. In Render, open the service's *Connect → Outbound* tab and copy its outbound IP ranges; in TiDB Cloud, add each one to the cluster's public endpoint allow list (*Networking*). Don't allow all addresses (`0.0.0.0/0`).
+
+Every start runs migrations (`migrate --force`) and rebuilds the config cache, so changed variables apply after a redeploy or restart. Render's free tier has no shell or pre-deploy command, which is why migrations run at startup; they only ever apply new migration files. The first deploy creates all tables in the empty `sira_ai` database. Check `https://<service>.onrender.com/up` and `/api/v1/health`.
 
 **3. Scheduler.** The free tier has no cron. Create a free job at [cron-job.org](https://cron-job.org) that calls `https://<service>.onrender.com/api/v1/cron/run` every 5 minutes with the header `X-Cron-Secret: <SIRA_CRON_SECRET>` (Render generated it; copy it from the service's *Environment* tab). This runs the weekly review, subscription checks and pruning, and keeps the free instance from sleeping (it sleeps after 15 idle minutes; the first request after that takes up to a minute). One service running all month fits in Render's 750 free hours.
 
