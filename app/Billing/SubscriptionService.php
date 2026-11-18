@@ -72,7 +72,7 @@ class SubscriptionService
     {
         $active = $user->activeSubscription();
         $premium = $active !== null;
-        $features = array_fill_keys(['advanced_analytics', 'productivity_reports', 'ai_coach', 'advanced_planning', 'unlimited_habits', 'unlimited_goals'], $premium);
+        $features = array_fill_keys(['advanced_analytics', 'productivity_reports', 'ai_coach', 'advanced_planning', 'unlimited_habits', 'unlimited_goals', 'unlimited_tasks', 'custom_focus'], $premium);
 
         return [
             'plan' => $premium ? 'premium' : 'free',
@@ -82,6 +82,9 @@ class SubscriptionService
                 'max_active_habits' => $premium ? null : config('sira.free.max_active_habits'),
                 'max_active_goals' => $premium ? null : config('sira.free.max_active_goals'),
                 'analytics_max_days' => $premium ? config('sira.premium.analytics_max_days') : config('sira.free.analytics_max_days'),
+                'max_tasks_per_day' => $premium ? null : config('sira.free.max_tasks_per_day'),
+                'max_subtasks_per_task' => $premium ? null : config('sira.free.max_subtasks_per_task'),
+                'focus_minutes' => $premium ? null : config('sira.free.focus_minutes'),
             ],
             'features' => $features,
             'products' => collect(config('sira.products'))->map(fn ($id, $plan) => ['product_id' => $id, 'plan' => $plan])->values()->all(),

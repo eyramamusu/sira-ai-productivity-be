@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Models\Subtask;
 use App\Models\Task;
@@ -26,6 +27,10 @@ class SubtaskController extends Controller
 
         $existing = isset($data['id']) ? Subtask::find($data['id']) : null;
         abort_if($existing && $existing->task_id !== $task->id, 409, 'This id is already used by another item.');
+        $max = config('sira.free.max_subtasks_per_task');
+        if (! $existing && $task->subtasks()->count() >= $max && ! $request->user()->isPremium()) {
+            throw ApiException::planLimit("The free plan includes {$max} subtasks per task. Upgrade to Premium for unlimited subtasks.");
+        }
         $data['position'] ??= (int) $task->subtasks()->max('position') + 1;
 
         $subtask = $existing ?? $task->subtasks()->make();

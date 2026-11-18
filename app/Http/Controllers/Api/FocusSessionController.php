@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\FocusSessionResource;
 use App\Models\FocusSession;
@@ -72,6 +73,8 @@ class FocusSessionController extends Controller
     /** XP always matches the session's current length, so edits re-price it. */
     private function save(FocusSession $session, array $data, User $user, int $status = 200): JsonResponse
     {
+        $this->ensureLengthAllowed($session, $data, $user);
+
         // Clients send local offsets; store UTC instants.
         foreach (['started_at', 'ended_at'] as $key) {
             if (! empty($data[$key])) {
@@ -92,6 +95,20 @@ class FocusSessionController extends Controller
             'xp' => (int) $user->xp,
             'achievements_unlocked' => $unlocked,
         ], $status);
+    }
+
+    /** Free focus sessions run for the fixed free length (a minute of slack covers timer drift). Breaks are not limited. */
+    private function ensureLengthAllowed(FocusSession $session, array $data, User $user): void
+    {
+        $minutes = config('sira.free.focus_minutes');
+        $type = $data['type'] ?? $session->type ?? 'focus';
+        $planned = (int) ($data['planned_seconds'] ?? $session->planned_seconds ?? 0);
+        $duration = (int) ($data['duration_seconds'] ?? $session->duration_seconds ?? 0);
+        if ($type !== 'focus' || ($planned <= $minutes * 60 && $duration <= ($minutes + 1) * 60) || $user->isPremium()) {
+            return;
+        }
+
+        throw ApiException::planLimit("Free focus sessions are {$minutes} minutes. Upgrade to Premium for 60-minute and custom sessions.");
     }
 
     private function rules(User $user, bool $creating): array

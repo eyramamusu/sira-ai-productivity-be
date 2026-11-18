@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\BirthdayResource;
+use App\Http\Resources\CalendarEventResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\FocusSessionResource;
 use App\Http\Resources\GoalResource;
 use App\Http\Resources\HabitResource;
 use App\Http\Resources\TaskResource;
+use App\Http\Resources\TimetableClassResource;
+use App\Http\Resources\TimetableTermResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -41,6 +45,10 @@ class SyncController extends Controller
             ->when(! $sinceUtc, fn ($q) => $q->where('started_at', '>=', $history))
             ->get();
 
+        $events = $changed($user->calendarEvents())
+            ->when(! $sinceUtc, fn ($q) => $q->where(fn ($q) => $q->where('repeat_rule', '!=', 'none')->orWhere('end_date', '>=', $history->toDateString())))
+            ->get();
+
         HabitResource::$days = self::HISTORY_DAYS;
 
         return response()->json([
@@ -51,6 +59,10 @@ class SyncController extends Controller
             'habits' => HabitResource::collection($changed($user->habits())->with(['logs' => fn ($q) => $q->where('date', '>=', $logsSince)])->get())->resolve($request),
             'goals' => GoalResource::collection($changed($user->goals())->withCount(['tasks', 'tasks as completed_tasks_count' => fn ($q) => $q->whereNotNull('completed_at')])->get())->resolve($request),
             'focus_sessions' => FocusSessionResource::collection($sessions)->resolve($request),
+            'events' => CalendarEventResource::collection($events)->resolve($request),
+            'birthdays' => BirthdayResource::collection($changed($user->birthdays())->get())->resolve($request),
+            'timetable_terms' => TimetableTermResource::collection($changed($user->timetableTerms())->get())->resolve($request),
+            'timetable_classes' => TimetableClassResource::collection($changed($user->timetableClasses())->get())->resolve($request),
             'settings' => $user->settingsOrDefault()->toApi(),
         ]);
     }

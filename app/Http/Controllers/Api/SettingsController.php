@@ -45,6 +45,10 @@ class SettingsController extends Controller
         if (isset($data['color_theme']) && $data['color_theme'] !== config('sira.free_color_theme') && ! $user->isPremium()) {
             throw ApiException::premiumRequired('Colour themes are a Premium feature.');
         }
+        $freeFocus = config('sira.free.focus_minutes');
+        if (isset($data['focus_minutes']) && (int) $data['focus_minutes'] !== $freeFocus && ! $user->isPremium()) {
+            throw ApiException::premiumRequired("Free focus sessions are {$freeFocus} minutes. 60-minute and custom sessions are a Premium feature.");
+        }
 
         $settings = $user->settingsOrDefault();
         $settings->update($data);
