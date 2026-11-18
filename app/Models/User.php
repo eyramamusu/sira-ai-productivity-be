@@ -74,6 +74,26 @@ class User extends Authenticatable
         return $this->hasMany(FocusSession::class);
     }
 
+    public function calendarEvents(): HasMany
+    {
+        return $this->hasMany(CalendarEvent::class);
+    }
+
+    public function birthdays(): HasMany
+    {
+        return $this->hasMany(Birthday::class);
+    }
+
+    public function timetableTerms(): HasMany
+    {
+        return $this->hasMany(TimetableTerm::class);
+    }
+
+    public function timetableClasses(): HasMany
+    {
+        return $this->hasMany(TimetableClass::class);
+    }
+
     public function xpEvents(): HasMany
     {
         return $this->hasMany(XpEvent::class);

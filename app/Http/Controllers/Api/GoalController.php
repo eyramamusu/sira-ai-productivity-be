@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\GoalResource;
+use App\Models\CalendarEvent;
 use App\Models\Goal;
 use App\Models\User;
 use App\Services\GoalService;
@@ -65,6 +66,7 @@ class GoalController extends Controller
         $this->own($request, $goal);
         DB::transaction(function () use ($goal) {
             $goal->tasks()->update(['goal_id' => null, 'updated_at' => now()]);
+            CalendarEvent::where('goal_id', $goal->id)->update(['goal_id' => null, 'updated_at' => now()]);
             $goal->delete();
         });
 

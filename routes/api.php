@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AvatarController;
+use App\Http\Controllers\Api\BirthdayController;
+use App\Http\Controllers\Api\CalendarEventController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CoachController;
 use App\Http\Controllers\Api\CronController;
@@ -17,6 +19,8 @@ use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SubtaskController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\TimetableClassController;
+use App\Http\Controllers\Api\TimetableTermController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -78,6 +82,11 @@ Route::prefix('v1')->group(function () {
         Route::delete('habits/{habit}/check-ins/{date}', [HabitController::class, 'undoCheckIn']);
 
         Route::apiResource('goals', GoalController::class);
+
+        Route::apiResource('events', CalendarEventController::class)->except('show')->parameters(['events' => 'id'])->whereUuid('id');
+        Route::apiResource('birthdays', BirthdayController::class)->except('show')->parameters(['birthdays' => 'id'])->whereUuid('id');
+        Route::apiResource('timetable/terms', TimetableTermController::class)->except('show')->parameters(['terms' => 'id'])->whereUuid('id');
+        Route::apiResource('timetable/classes', TimetableClassController::class)->except('show')->parameters(['classes' => 'id'])->whereUuid('id');
 
         Route::apiResource('focus-sessions', FocusSessionController::class)->except('show')
             ->parameters(['focus-sessions' => 'focusSession']);

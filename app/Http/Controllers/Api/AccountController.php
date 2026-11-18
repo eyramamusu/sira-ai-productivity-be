@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\BirthdayResource;
+use App\Http\Resources\CalendarEventResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\FocusSessionResource;
 use App\Http\Resources\GoalResource;
 use App\Http\Resources\HabitResource;
 use App\Http\Resources\TaskResource;
+use App\Http\Resources\TimetableClassResource;
+use App\Http\Resources\TimetableTermResource;
 use App\Http\Resources\UserResource;
 use App\Notifications\SecurityAlert;
 use App\Support\AvatarStore;
@@ -106,6 +110,10 @@ class AccountController extends Controller
             'habits' => HabitResource::collection($user->habits()->with('logs')->get())->resolve($request),
             'goals' => GoalResource::collection($user->goals()->get())->resolve($request),
             'focus_sessions' => FocusSessionResource::collection($user->focusSessions()->orderBy('started_at')->get())->resolve($request),
+            'events' => CalendarEventResource::collection($user->calendarEvents()->orderBy('start_date')->get())->resolve($request),
+            'birthdays' => BirthdayResource::collection($user->birthdays()->get())->resolve($request),
+            'timetable_terms' => TimetableTermResource::collection($user->timetableTerms()->get())->resolve($request),
+            'timetable_classes' => TimetableClassResource::collection($user->timetableClasses()->get())->resolve($request),
             'achievements' => $user->achievements()->get(['achievement_key', 'unlocked_at']),
             'xp_history' => $user->xpEvents()->orderBy('id')->get(['amount', 'reason', 'created_at']),
             'subscriptions' => $user->subscriptions()->get()->map->toApi(),

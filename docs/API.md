@@ -80,6 +80,17 @@ Categories: `GET/POST /categories`, `PATCH/DELETE /categories/{id}`.
 | GET/POST/PATCH/DELETE | `/goals[/{id}]` | `title, description, target_date, progress, status` · free plan: 3 active · completing awards 50 XP |
 | GET/POST/PATCH/DELETE | `/focus-sessions[/{id}]` | `started_at, ended_at, planned_seconds, duration_seconds, completed, task_id, type (focus\|break)` · 1 XP per 5 focused minutes (max 30) |
 
+## Calendar: events, birthdays, timetable
+
+All free. Each row type supports `GET` (list), `POST` (create, idempotent with a client `id`), `PATCH /{id}` and `DELETE /{id}`.
+
+| Path | Fields |
+| --- | --- |
+| `/events` | `title, description, location, all_day, start_date, start_time, end_date, end_time, repeat_rule (none\|daily\|weekly\|monthly\|yearly), repeat_until, reminder_minutes[], color, goal_id` · must end after it starts |
+| `/birthdays` | `name, month, day, birth_year?, reminder_days[] (0 = on the day), reminder_time, color, note` · 29 February allowed |
+| `/timetable/terms` | `name, starts_on, ends_on` · a term's classes repeat weekly between these dates |
+| `/timetable/classes` | `term_id?, name, code, kind (lecture\|tutorial\|lab\|seminar\|other), lecturer, room, color, slots[{weekday 1=Mon…7=Sun, start, end}], reminder_minutes, show_in_calendar, notes` |
+
 ## Read models
 
 | Method | Path | Plan |
@@ -93,8 +104,8 @@ Categories: `GET/POST /categories`, `PATCH/DELETE /categories/{id}`.
 
 ## Sync (offline support)
 
-`GET /sync?since=<server_time>` returns `{server_time, full, tasks, categories, habits, goals, focus_sessions, settings}`.
-Without `since` you get a full snapshot: open tasks plus 60 days of history. With `since` you get only the rows that changed, including soft-deleted rows that have `deleted_at` set.
+`GET /sync?since=<server_time>` returns `{server_time, full, tasks, categories, habits, goals, focus_sessions, events, birthdays, timetable_terms, timetable_classes, settings}`.
+Without `since` you get a full snapshot: open tasks plus 60 days of history (repeating events always, one-off events that ended in the last 60 days). With `since` you get only the rows that changed, including soft-deleted rows that have `deleted_at` set.
 
 Writes use the normal endpoints. Clients generate UUIDs, so replaying a queued `POST` is idempotent: the existing row is updated (`200`) instead of duplicated. Conflicts resolve last-write-wins.
 
