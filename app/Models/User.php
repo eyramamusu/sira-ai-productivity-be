@@ -94,6 +94,16 @@ class User extends Authenticatable
         return $this->hasMany(TimetableClass::class);
     }
 
+    public function timetableVacations(): HasMany
+    {
+        return $this->hasMany(TimetableVacation::class);
+    }
+
+    public function agendaEntries(): HasMany
+    {
+        return $this->hasMany(AgendaEntry::class);
+    }
+
     public function xpEvents(): HasMany
     {
         return $this->hasMany(XpEvent::class);

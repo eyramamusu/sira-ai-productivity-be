@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AgendaEntryResource;
 use App\Http\Resources\BirthdayResource;
 use App\Http\Resources\CalendarEventResource;
 use App\Http\Resources\CategoryResource;
@@ -12,6 +13,7 @@ use App\Http\Resources\HabitResource;
 use App\Http\Resources\TaskResource;
 use App\Http\Resources\TimetableClassResource;
 use App\Http\Resources\TimetableTermResource;
+use App\Http\Resources\TimetableVacationResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -63,6 +65,8 @@ class SyncController extends Controller
             'birthdays' => BirthdayResource::collection($changed($user->birthdays())->get())->resolve($request),
             'timetable_terms' => TimetableTermResource::collection($changed($user->timetableTerms())->get())->resolve($request),
             'timetable_classes' => TimetableClassResource::collection($changed($user->timetableClasses())->get())->resolve($request),
+            'timetable_vacations' => TimetableVacationResource::collection($changed($user->timetableVacations())->get())->resolve($request),
+            'agenda_entries' => AgendaEntryResource::collection($changed($user->agendaEntries())->get())->resolve($request),
             'settings' => $user->settingsOrDefault()->toApi(),
         ]);
     }

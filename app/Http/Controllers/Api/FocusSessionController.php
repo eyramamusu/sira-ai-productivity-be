@@ -118,6 +118,8 @@ class FocusSessionController extends Controller
         return [
             'id' => ['sometimes', 'uuid'],
             'task_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('tasks', 'id')->where('user_id', $user->id)],
+            'event_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('calendar_events', 'id')->where('user_id', $user->id)],
+            'class_id' => ['sometimes', 'nullable', 'uuid', Rule::exists('timetable_classes', 'id')->where('user_id', $user->id)],
             'type' => ['sometimes', Rule::in(['focus', 'break'])],
             'started_at' => [$required, 'date'],
             'ended_at' => ['sometimes', 'nullable', 'date', 'after_or_equal:started_at'],

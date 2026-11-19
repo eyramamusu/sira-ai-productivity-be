@@ -78,7 +78,7 @@ Categories: `GET/POST /categories`, `PATCH/DELETE /categories/{id}`.
 | POST | `/habits/{id}/check-ins` | `{date?, count?}` (not in the future) · +5 XP |
 | DELETE | `/habits/{id}/check-ins/{YYYY-MM-DD}` | Undo |
 | GET/POST/PATCH/DELETE | `/goals[/{id}]` | `title, description, target_date, progress, status` · free plan: 3 active · completing awards 50 XP |
-| GET/POST/PATCH/DELETE | `/focus-sessions[/{id}]` | `started_at, ended_at, planned_seconds, duration_seconds, completed, task_id, type (focus\|break)` · 1 XP per 5 focused minutes (max 30) |
+| GET/POST/PATCH/DELETE | `/focus-sessions[/{id}]` | `started_at, ended_at, planned_seconds, duration_seconds, completed, task_id, event_id, class_id, type (focus\|break)` · 1 XP per 5 focused minutes (max 30) |
 
 ## Calendar: events, birthdays, timetable
 
@@ -90,6 +90,8 @@ All free. Each row type supports `GET` (list), `POST` (create, idempotent with a
 | `/birthdays` | `name, month, day, birth_year?, reminder_days[] (0 = on the day), reminder_time, color, note` · 29 February allowed |
 | `/timetable/terms` | `name, starts_on, ends_on` · a term's classes repeat weekly between these dates |
 | `/timetable/classes` | `term_id?, name, code, kind (lecture\|tutorial\|lab\|seminar\|other), lecturer, room, color, slots[{weekday 1=Mon…7=Sun, start, end}], reminder_minutes, show_in_calendar, notes` |
+| `/timetable/vacations` | `name, starts_on, ends_on, class_ids[]` · no classes meet in a vacation except those in `class_ids` |
+| `/agenda-entries` | `item_type (class\|event), item_id, date, slot_start?, done_at, notes` · one row per class or event occurrence (attended / done, that day's notes); clients derive the id from item, date and slot so devices share one row |
 
 ## Read models
 
@@ -104,7 +106,7 @@ All free. Each row type supports `GET` (list), `POST` (create, idempotent with a
 
 ## Sync (offline support)
 
-`GET /sync?since=<server_time>` returns `{server_time, full, tasks, categories, habits, goals, focus_sessions, events, birthdays, timetable_terms, timetable_classes, settings}`.
+`GET /sync?since=<server_time>` returns `{server_time, full, tasks, categories, habits, goals, focus_sessions, events, birthdays, timetable_terms, timetable_classes, timetable_vacations, agenda_entries, settings}`.
 Without `since` you get a full snapshot: open tasks plus 60 days of history (repeating events always, one-off events that ended in the last 60 days). With `since` you get only the rows that changed, including soft-deleted rows that have `deleted_at` set.
 
 Writes use the normal endpoints. Clients generate UUIDs, so replaying a queued `POST` is idempotent: the existing row is updated (`200`) instead of duplicated. Conflicts resolve last-write-wins.
