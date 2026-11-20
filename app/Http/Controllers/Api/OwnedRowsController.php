@@ -40,6 +40,17 @@ abstract class OwnedRowsController extends Controller
         return [];
     }
 
+    /**
+     * The fields a replayed POST (one whose id already exists) may change. Defaults to all.
+     */
+    protected function onReplay(array $data): array
+    {
+        return $data;
+    }
+
+    /** Runs after a row is soft-deleted, for rows that hang off it. */
+    protected function afterDelete(User $user, Model $row): void {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         return $this->resource()::collection($this->rows($request->user())->orderBy('created_at')->get());
@@ -51,6 +62,9 @@ abstract class OwnedRowsController extends Controller
         $data = $request->validate($this->rules($request, true));
         $row = $this->replayed($this->model(), $data['id'] ?? null, $user);
         $created = $row === null;
+        if (! $created) {
+            $data = $this->onReplay($data);
+        }
         $row ??= $this->rows($user)->make();
 
         return $this->save($row, $data, $created ? 201 : 200);
@@ -67,7 +81,9 @@ abstract class OwnedRowsController extends Controller
 
     public function destroy(Request $request, string $id): Response
     {
-        $this->find($request, $id)->delete();
+        $row = $this->find($request, $id);
+        $row->delete();
+        $this->afterDelete($request->user(), $row);
 
         return response()->noContent();
     }

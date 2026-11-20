@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Resources\TimetableClassResource;
 use App\Models\TimetableClass;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -24,6 +25,12 @@ class TimetableClassController extends OwnedRowsController
     protected function resource(): string
     {
         return TimetableClassResource::class;
+    }
+
+    /** The class's attendance marks and per-day notes go with it (soft-deleted, so sync passes it on). */
+    protected function afterDelete(User $user, Model $row): void
+    {
+        $user->agendaEntries()->where('item_type', 'class')->where('item_id', $row->getKey())->delete();
     }
 
     protected function rules(Request $request, bool $creating): array

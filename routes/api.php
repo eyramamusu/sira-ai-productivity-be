@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AvatarController;
+use App\Http\Controllers\Api\AgendaEntryController;
 use App\Http\Controllers\Api\BirthdayController;
 use App\Http\Controllers\Api\CalendarEventController;
 use App\Http\Controllers\Api\CategoryController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\TimetableClassController;
 use App\Http\Controllers\Api\TimetableTermController;
+use App\Http\Controllers\Api\TimetableVacationController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -87,6 +89,8 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('birthdays', BirthdayController::class)->except('show')->parameters(['birthdays' => 'id'])->whereUuid('id');
         Route::apiResource('timetable/terms', TimetableTermController::class)->except('show')->parameters(['terms' => 'id'])->whereUuid('id');
         Route::apiResource('timetable/classes', TimetableClassController::class)->except('show')->parameters(['classes' => 'id'])->whereUuid('id');
+        Route::apiResource('timetable/vacations', TimetableVacationController::class)->except('show')->parameters(['vacations' => 'id'])->whereUuid('id');
+        Route::apiResource('agenda-entries', AgendaEntryController::class)->except('show')->parameters(['agenda-entries' => 'id'])->whereUuid('id');
 
         Route::apiResource('focus-sessions', FocusSessionController::class)->except('show')
             ->parameters(['focus-sessions' => 'focusSession']);

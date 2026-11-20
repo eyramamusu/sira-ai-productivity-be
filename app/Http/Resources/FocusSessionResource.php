@@ -15,6 +15,8 @@ class FocusSessionResource extends JsonResource
         return [
             'id' => $this->id,
             'task_id' => $this->task_id,
+            'event_id' => $this->event_id,
+            'class_id' => $this->class_id,
             'type' => $this->type,
             'started_at' => $this->started_at?->toIso8601String(),
             'ended_at' => $this->ended_at?->toIso8601String(),

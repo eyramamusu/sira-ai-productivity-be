@@ -16,7 +16,7 @@ class FocusSession extends Model
 
     public const MAX_XP = 30;
 
-    protected $fillable = ['id', 'task_id', 'type', 'started_at', 'ended_at', 'planned_seconds', 'duration_seconds', 'completed', 'note'];
+    protected $fillable = ['id', 'task_id', 'event_id', 'class_id', 'type', 'started_at', 'ended_at', 'planned_seconds', 'duration_seconds', 'completed', 'note'];
 
     protected $attributes = ['type' => 'focus', 'planned_seconds' => 1500, 'duration_seconds' => 0, 'completed' => false];
 
