@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Resources\CalendarEventResource;
 use App\Models\CalendarEvent;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -25,6 +26,12 @@ class CalendarEventController extends OwnedRowsController
     protected function resource(): string
     {
         return CalendarEventResource::class;
+    }
+
+    /** The event's attendance marks and per-day notes go with it (soft-deleted, so sync passes it on). */
+    protected function afterDelete(User $user, Model $row): void
+    {
+        $user->agendaEntries()->where('item_type', 'event')->where('item_id', $row->getKey())->delete();
     }
 
     protected function rules(Request $request, bool $creating): array

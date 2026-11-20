@@ -52,6 +52,50 @@ class AgendaEntriesAndVacationsTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('item_type');
     }
 
+    public function test_a_replayed_post_or_patch_never_moves_an_entry_to_another_occurrence(): void
+    {
+        $this->signIn();
+        $class = (string) Str::uuid();
+        $id = (string) Str::uuid();
+        $this->postJson('/api/v1/agenda-entries', ['id' => $id, 'item_type' => 'class', 'item_id' => $class, 'date' => '2026-11-19', 'slot_start' => '09:00'])->assertCreated();
+
+        $this->postJson('/api/v1/agenda-entries', ['id' => $id, 'item_type' => 'event', 'item_id' => (string) Str::uuid(), 'date' => '2026-11-26', 'slot_start' => '14:00', 'notes' => 'Kept'])
+            ->assertOk()->assertJsonPath('data.notes', 'Kept')->assertJsonPath('data.item_type', 'class')
+            ->assertJsonPath('data.item_id', $class)->assertJsonPath('data.date', '2026-11-19')->assertJsonPath('data.slot_start', '09:00');
+        $this->patchJson("/api/v1/agenda-entries/{$id}", ['date' => '2026-12-03', 'notes' => 'Again'])
+            ->assertOk()->assertJsonPath('data.date', '2026-11-19')->assertJsonPath('data.notes', 'Again');
+    }
+
+    public function test_entries_can_be_listed_for_one_item_and_full_sync_leaves_out_old_ones(): void
+    {
+        $this->signIn();
+        $class = (string) Str::uuid();
+        $old = now()->subDays(300)->toDateString();
+        $this->postJson('/api/v1/agenda-entries', ['id' => (string) Str::uuid(), 'item_type' => 'class', 'item_id' => $class, 'date' => $old, 'notes' => 'Old'])->assertCreated();
+        $this->postJson('/api/v1/agenda-entries', ['id' => (string) Str::uuid(), 'item_type' => 'class', 'item_id' => $class, 'date' => now()->toDateString(), 'notes' => 'New'])->assertCreated();
+        $this->postJson('/api/v1/agenda-entries', ['id' => (string) Str::uuid(), 'item_type' => 'event', 'item_id' => (string) Str::uuid(), 'date' => now()->toDateString()])->assertCreated();
+
+        $this->getJson('/api/v1/sync')->assertOk()->assertJsonCount(2, 'agenda_entries');
+        $this->getJson("/api/v1/agenda-entries?item_id={$class}")->assertOk()->assertJsonCount(2, 'data')->assertJsonPath('data.0.notes', 'Old');
+    }
+
+    public function test_deleting_a_class_or_event_deletes_its_entries(): void
+    {
+        $this->signIn();
+        $class = $this->postJson('/api/v1/timetable/classes', ['name' => 'Maths', 'slots' => [['weekday' => 4, 'start' => '09:00', 'end' => '10:00']]])->json('data.id');
+        $event = $this->postJson('/api/v1/events', ['title' => 'Study group', 'start_date' => '2026-11-19', 'end_date' => '2026-11-19', 'all_day' => true])->json('data.id');
+        $this->postJson('/api/v1/agenda-entries', ['id' => (string) Str::uuid(), 'item_type' => 'class', 'item_id' => $class, 'date' => '2026-11-19', 'slot_start' => '09:00', 'notes' => 'x'])->assertCreated();
+        $this->postJson('/api/v1/agenda-entries', ['id' => (string) Str::uuid(), 'item_type' => 'event', 'item_id' => $event, 'date' => '2026-11-19'])->assertCreated();
+        $since = now()->subSecond()->toIso8601String();
+
+        $this->deleteJson("/api/v1/timetable/classes/{$class}")->assertNoContent();
+        $this->getJson('/api/v1/agenda-entries')->assertJsonCount(1, 'data');
+        $this->deleteJson("/api/v1/events/{$event}")->assertNoContent();
+        $this->getJson('/api/v1/agenda-entries')->assertJsonCount(0, 'data');
+        // Other devices hear about it on their next sync.
+        $this->getJson('/api/v1/sync?since='.urlencode($since))->assertOk()->assertJsonCount(2, 'agenda_entries')->assertJsonPath('agenda_entries.0.deleted_at', fn ($v) => $v !== null);
+    }
+
     public function test_entries_are_private_to_their_owner(): void
     {
         $this->signIn();
